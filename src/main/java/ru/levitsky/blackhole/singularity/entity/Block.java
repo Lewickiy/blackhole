@@ -26,8 +26,8 @@ import java.util.UUID;
 public class Block {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id")
+    @GeneratedValue
+    @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
     @Column(name = "hash", nullable = false, unique = true, length = 64)
