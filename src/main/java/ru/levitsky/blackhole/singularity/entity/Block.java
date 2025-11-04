@@ -1,5 +1,13 @@
 package ru.levitsky.blackhole.singularity.entity;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,14 +19,30 @@ import java.util.UUID;
 @Getter
 @Setter
 @NoArgsConstructor
+@Entity
+@Table(name = "block", indexes = {
+        @Index(name = "idx_block_hash", columnList = "hash")
+})
 public class Block {
 
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "id")
     private UUID id;
+
+    @Column(name = "hash", nullable = false, unique = true, length = 64)
     private String hash;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
+
     @Setter(AccessLevel.NONE)
+    @Lob
+    @Column(name = "data", nullable = false)
     private byte[] data;
+
     @Setter(AccessLevel.NONE)
+    @Column(name = "size", nullable = false)
     private int size;
 
     public Block(String hash, byte[] data) {
