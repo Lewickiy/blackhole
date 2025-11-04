@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: blackhole
+
+  datasource:
+    url: jdbc:postgresql://localhost:54321/blackhole
+    username: ${USER_NAME_DB}
+    password: ${USER_PASSWORD_DB}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    properties:
+      hibernate.format_sql: true
+
+    flyway:
+      enabled: true
+      baseline-on-migrate: true
+      locations: classpath:db/migration
