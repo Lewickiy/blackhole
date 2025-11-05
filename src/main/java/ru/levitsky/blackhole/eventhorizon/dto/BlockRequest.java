@@ -1,4 +1,9 @@
 package ru.levitsky.blackhole.eventhorizon.dto;
 
-public class BlockRequest {
-}
+import java.time.Instant;
+
+public record BlockRequest(
+        String hash,
+        Instant createdAt,
+        byte[] data,
+        int size) {}
