@@ -1,11 +1,21 @@
 package ru.levitsky.blackhole.eventhorizon.dto;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 import java.time.Instant;
 import java.util.UUID;
 
-public record BlockResponse(
-        UUID id,
-        String hash,
-        Instant createdAt,
-        byte[] data,
-        int size) {}
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+public class BlockResponse {
+    private UUID id;
+    private String hash;
+    private Instant createdAt;
+    private byte[] data;
+    private int size;
+}
