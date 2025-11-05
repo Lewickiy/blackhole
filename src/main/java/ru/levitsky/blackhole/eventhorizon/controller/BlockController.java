@@ -12,12 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 import ru.levitsky.blackhole.core.service.BlockService;
 import ru.levitsky.blackhole.eventhorizon.dto.BlockRequest;
 import ru.levitsky.blackhole.eventhorizon.dto.BlockResponse;
-import ru.levitsky.blackhole.singularity.entity.Block;
-
-import java.util.Optional;
 
 @RestController
-@RequestMapping("/block")
+@RequestMapping("/api/v1/blocks")
 @RequiredArgsConstructor
 public class BlockController {
 
@@ -29,8 +26,9 @@ public class BlockController {
     }
 
     @GetMapping("/{hash}")
-    public ResponseEntity<Block> getBlock(@PathVariable String hash) {
-        Optional<Block> block = blockService.getBlockByHash(hash);
-        return block.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<BlockResponse> getBlockByHash(@PathVariable String hash) {
+        return blockService.getBlockByHash(hash)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 }

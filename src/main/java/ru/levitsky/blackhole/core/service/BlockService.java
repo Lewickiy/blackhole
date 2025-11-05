@@ -23,7 +23,7 @@ public class BlockService {
         return blockMapper.toResponse(savedBlock);
     }
 
-    public Optional<Block> getBlockByHash(String hash) {
-        return blockRepository.findByHash(hash);
+    public Optional<BlockResponse> getBlockByHash(String hash) {
+        return blockRepository.findByHash(hash).map(blockMapper::toResponse);
     }
 }
