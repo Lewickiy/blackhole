@@ -18,8 +18,8 @@ public class BlockService {
     private final BlockMapper blockMapper;
 
     public BlockResponse saveBlock(BlockRequest request) {
-        Block savedBlock = blockRepository.save(blockMapper.requestToEntity(request));
-        return blockMapper.entityToResponse(savedBlock);
+        Block savedBlock = blockRepository.save(blockMapper.toEntity(request));
+        return blockMapper.toResponse(savedBlock);
     }
 
     public Optional<Block> getBlockByHash(String hash) {

@@ -7,7 +7,7 @@ import ru.levitsky.blackhole.singularity.entity.Block;
 
 @Mapper(componentModel = "spring")
 public interface BlockMapper {
-    BlockResponse entityToResponse(Block block);
+    BlockResponse toResponse(Block block);
 
-    Block requestToEntity(BlockRequest request);
+    Block toEntity(BlockRequest request);
 }
