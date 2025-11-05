@@ -18,7 +18,8 @@ public class BlockService {
     private final BlockMapper blockMapper;
 
     public BlockResponse saveBlock(BlockRequest request) {
-        Block savedBlock = blockRepository.save(blockMapper.toEntity(request));
+        Block entity = blockMapper.toEntity(request);
+        Block savedBlock = blockRepository.save(entity);
         return blockMapper.toResponse(savedBlock);
     }
 
