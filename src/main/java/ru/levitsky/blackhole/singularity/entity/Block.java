@@ -3,7 +3,6 @@ package ru.levitsky.blackhole.singularity.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
@@ -34,7 +33,7 @@ public class Block {
     private String hash;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    private Instant createdAt = Instant.now(); //TODO create timestamp migration for db. remove Instant.now() from here
 
     @Setter(AccessLevel.NONE)
     @Lob
