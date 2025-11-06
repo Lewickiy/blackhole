@@ -1,4 +1,4 @@
-package ru.levitsky.blackhole.eventhorizon.dto;
+package ru.levitsky.blackhole.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;

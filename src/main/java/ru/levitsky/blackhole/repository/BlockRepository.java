@@ -1,7 +1,7 @@
 package ru.levitsky.blackhole.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import ru.levitsky.blackhole.singularity.entity.Block;
+import ru.levitsky.blackhole.entity.Block;
 
 import java.util.Optional;
 import java.util.UUID;

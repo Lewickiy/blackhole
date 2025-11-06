@@ -1,4 +1,4 @@
-package ru.levitsky.blackhole.eventhorizon.dto;
+package ru.levitsky.blackhole.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
