@@ -1,4 +1,4 @@
-package ru.levitsky.blackhole.singularity.entity;
+package ru.levitsky.blackhole.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,7 +33,7 @@ public class Block {
     private String hash;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now(); //TODO create timestamp migration for db. remove Instant.now() from here
+    private Instant createdAt = Instant.now();
 
     @Setter(AccessLevel.NONE)
     @Lob

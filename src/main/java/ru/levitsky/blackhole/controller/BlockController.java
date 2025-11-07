@@ -1,4 +1,4 @@
-package ru.levitsky.blackhole.eventhorizon.controller;
+package ru.levitsky.blackhole.controller;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.levitsky.blackhole.core.service.BlockService;
-import ru.levitsky.blackhole.eventhorizon.dto.BlockResponse;
-import ru.levitsky.blackhole.eventhorizon.dto.BlockSaveRequest;
+import ru.levitsky.blackhole.service.BlockService;
+import ru.levitsky.blackhole.dto.BlockResponse;
+import ru.levitsky.blackhole.dto.BlockSaveRequest;
 
 @Validated
 @RestController
