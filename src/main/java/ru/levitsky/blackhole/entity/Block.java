@@ -32,8 +32,8 @@ public class Block {
     @Column(name = "hash", nullable = false, unique = true, length = 64)
     private String hash;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt = Instant.now();
+    @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
+    private Instant createdAt;
 
     @Setter(AccessLevel.NONE)
     @Lob
