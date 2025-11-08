@@ -12,9 +12,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import ru.levitsky.blackhole.service.BlockService;
+import ru.levitsky.blackhole.dto.BlockBatchUploadRequest;
+import ru.levitsky.blackhole.dto.BlockCheckRequest;
+import ru.levitsky.blackhole.dto.BlockCheckResponse;
 import ru.levitsky.blackhole.dto.BlockResponse;
 import ru.levitsky.blackhole.dto.BlockSaveRequest;
+import ru.levitsky.blackhole.service.BlockService;
+
+import java.util.List;
 
 @Validated
 @RestController
@@ -34,5 +39,17 @@ public class BlockController {
         return blockService.getBlockByHash(hash)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/check")
+    public ResponseEntity<BlockCheckResponse> checkBlocks(@RequestBody @Valid BlockCheckRequest request) {
+        List<String> missing = blockService.findMissingHashes(request.getHashes());
+        return ResponseEntity.status(HttpStatus.OK).body(new BlockCheckResponse(missing));
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<List<BlockResponse>> uploadBlocks(@RequestBody @Valid BlockBatchUploadRequest request) {
+        List<BlockResponse> responses = blockService.saveBlocksBatch(request.getBlocks());
+        return ResponseEntity.status(HttpStatus.CREATED).body(responses);
     }
 }
