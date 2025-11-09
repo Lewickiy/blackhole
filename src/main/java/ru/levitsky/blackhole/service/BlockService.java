@@ -30,7 +30,6 @@ public class BlockService {
     public BlockResponse saveBlock(BlockSaveRequest request) {
         Block entity = blockMapper.toEntity(request);
         Block savedBlock = blockRepository.saveAndFlush(entity);
-        entityManager.refresh(savedBlock);
 
         return blockMapper.toResponse(savedBlock);
     }
@@ -73,6 +72,7 @@ public class BlockService {
      * @param blockSaveRequestList list of blocks to save
      * @return list of saved blocks represented as {@link BlockResponse}
      */
+    @Transactional
     public List<BlockResponse> saveBlocksBatch(List<BlockSaveRequest> blockSaveRequestList) {
         var entities = blockSaveRequestList.stream()
                 .map(blockMapper::toEntity)
