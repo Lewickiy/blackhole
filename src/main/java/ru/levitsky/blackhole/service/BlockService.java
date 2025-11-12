@@ -1,6 +1,5 @@
 package ru.levitsky.blackhole.service;
 
-import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,10 +11,10 @@ import ru.levitsky.blackhole.entity.Block;
 import ru.levitsky.blackhole.mapper.BlockMapper;
 import ru.levitsky.blackhole.repository.BlockRepository;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -23,9 +22,9 @@ import java.util.stream.Collectors;
 public class BlockService {
 
     @PersistenceContext
-    private EntityManager entityManager;
     private final BlockRepository blockRepository;
     private final BlockMapper blockMapper;
+    private static final int BATCH_SIZE = 10000;
 
     public BlockResponse saveBlock(BlockSaveRequest request) {
         Block entity = blockMapper.toEntity(request);
@@ -47,18 +46,20 @@ public class BlockService {
      * This method is used for batch deduplication — to determine which blocks
      * need to be uploaded by comparing the provided list of hashes with the
      * ones already stored in the system<br>
-     *
-     * @param hashes list of hashes to check for existence
-     * @return list of hashes that are missing in the database
      */
     @Transactional(readOnly = true)
-    public List<String> findMissingHashes(List<String> hashes) {
-        Set<String> existing = blockRepository.findAllByHashIn(hashes)
-                .stream()
-                .map(Block::getHash)
-                .collect(Collectors.toSet());
+    public List<String> findMissingHashes(List<String> allHashes) {
+        Set<String> existing = new HashSet<>();
 
-        return hashes.stream()
+        for (int i = 0; i < allHashes.size(); i += BATCH_SIZE) {
+            List<String> batch = allHashes.subList(i, Math.min(i + BATCH_SIZE, allHashes.size()));
+            existing.addAll(blockRepository.findAllByHashIn(batch)
+                    .stream()
+                    .map(Block::getHash)
+                    .toList());
+        }
+
+        return allHashes.stream()
                 .filter(hash -> !existing.contains(hash))
                 .toList();
     }
