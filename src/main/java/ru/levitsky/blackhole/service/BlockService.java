@@ -21,7 +21,6 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class BlockService {
 
-    @PersistenceContext
     private final BlockRepository blockRepository;
     private final BlockMapper blockMapper;
     private static final int BATCH_SIZE = 10000;
