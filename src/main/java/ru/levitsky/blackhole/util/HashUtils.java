@@ -1,6 +1,6 @@
 package ru.levitsky.blackhole.util;
 
-public class HashUtils {
+public abstract class HashUtils {
 
     public static byte[] hexToBytes(String hex) {
         int len = hex.length();
