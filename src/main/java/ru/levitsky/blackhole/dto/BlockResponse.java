@@ -4,18 +4,17 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import ru.levitsky.blackhole.enumeration.BlockType;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class BlockResponse {
-    private UUID id;
     private String hash;
-    private Instant createdAt;
     private byte[] data;
-    private int size;
+    private Instant createdAt;
+    private BlockType type;
 }

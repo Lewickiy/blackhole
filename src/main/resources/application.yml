@@ -14,6 +14,9 @@ spring:
     show-sql: false
     properties:
       hibernate.format_sql: true
+      jdbc:
+        lob:
+          non_contextual_creation: true
 
   flyway:
     enabled: true

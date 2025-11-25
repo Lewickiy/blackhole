@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import ru.levitsky.blackhole.enumeration.BlockType;
 
 import java.util.List;
 
@@ -13,4 +14,5 @@ import java.util.List;
 @AllArgsConstructor
 public class BlockCheckRequest {
     private List<String> hashes;
+    private BlockType type;
 }

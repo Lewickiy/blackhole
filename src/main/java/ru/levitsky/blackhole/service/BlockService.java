@@ -6,81 +6,115 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.levitsky.blackhole.dto.BlockResponse;
 import ru.levitsky.blackhole.dto.BlockSaveRequest;
-import ru.levitsky.blackhole.entity.Block;
+import ru.levitsky.blackhole.entity.BlockBase;
+import ru.levitsky.blackhole.entity.ChromaCbBlock;
+import ru.levitsky.blackhole.entity.ChromaCrBlock;
+import ru.levitsky.blackhole.entity.LumaBlock;
+import ru.levitsky.blackhole.enumeration.BlockType;
 import ru.levitsky.blackhole.mapper.BlockMapper;
-import ru.levitsky.blackhole.repository.BlockRepository;
+import ru.levitsky.blackhole.repository.BlockRepositoryCustom;
+import ru.levitsky.blackhole.repository.ChromaCbBlockRepository;
+import ru.levitsky.blackhole.repository.ChromaCrBlockRepository;
+import ru.levitsky.blackhole.repository.LumaBlockRepository;
+import ru.levitsky.blackhole.util.HashUtils;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class BlockService {
 
-    private final BlockRepository blockRepository;
-    private final BlockMapper blockMapper;
     private static final int BATCH_SIZE = 10000;
 
+    private final BlockRepositoryCustom lumaRepoCustom;
+    private final BlockRepositoryCustom cbRepoCustom;
+    private final BlockRepositoryCustom crRepoCustom;
+    private final ChromaCrBlockRepository crRepo;
+    private final ChromaCbBlockRepository cbRepo;
+    private final LumaBlockRepository lumaRepo;
+    private final BlockMapper mapper;
+
+
     public BlockResponse saveBlock(BlockSaveRequest request) {
-        Block entity = blockMapper.toEntity(request);
-        Block savedBlock = blockRepository.saveAndFlush(entity);
-
-        return blockMapper.toResponse(savedBlock);
+        BlockBase entity = mapper.toEntity(request);
+        BlockBase saved = switch (request.getType()) {
+            case LUMA -> lumaRepo.save((LumaBlock) entity);
+            case CHROMA_CB -> cbRepo.save((ChromaCbBlock) entity);
+            case CHROMA_CR -> crRepo.save((ChromaCrBlock) entity);
+        };
+        return mapper.toResponse(saved, request.getType());
     }
 
     @Transactional(readOnly = true)
-    public Optional<BlockResponse> getBlockByHash(String hash) {
-        Optional<BlockResponse> response = blockRepository.findByHash(hash).map(blockMapper::toResponse);
-        log.info("returns block: {}", response);
-
-        return response;
+    public Optional<BlockResponse> getBlockByHash(String hash, BlockType type) {
+        byte[] byteHash = HashUtils.hexToBytes(hash);
+        Optional<? extends BlockBase> entity = switch (type) {
+            case LUMA -> lumaRepo.findByHash(byteHash);
+            case CHROMA_CB -> cbRepo.findByHash(byteHash);
+            case CHROMA_CR -> crRepo.findByHash(byteHash);
+        };
+        return entity.map(b -> mapper.toResponse(b, type));
     }
 
-    /**
-     * Returns a list of hashes that are not present in the database<br>
-     * This method is used for batch deduplication — to determine which blocks
-     * need to be uploaded by comparing the provided list of hashes with the
-     * ones already stored in the system<br>
-     */
-    @Transactional(readOnly = true)
-    public List<String> findMissingHashes(List<String> allHashes) {
+    @Transactional
+    public List<String> findMissingHashes(List<String> hexHashes, BlockType type) {
+        List<byte[]> hashes = hexHashes.stream().map(HashUtils::hexToBytes).toList();
         Set<String> existing = new HashSet<>();
 
-        for (int i = 0; i < allHashes.size(); i += BATCH_SIZE) {
-            List<String> batch = allHashes.subList(i, Math.min(i + BATCH_SIZE, allHashes.size()));
-            existing.addAll(blockRepository.findAllByHashIn(batch)
-                    .stream()
-                    .map(Block::getHash)
-                    .toList());
+        for (int i = 0; i < hashes.size(); i += BATCH_SIZE) {
+            List<byte[]> batch = hashes.subList(i, Math.min(i + BATCH_SIZE, hashes.size()));
+            List<byte[]> found;
+            switch (type) {
+                case LUMA:
+                    found = lumaRepo.findAllByHashIn(batch).stream().map(BlockBase::getHash).toList();
+                    byte[][] lumaArr = found.toArray(byte[][]::new);
+                    lumaRepoCustom.incrementUsageForHashes(lumaArr);
+                    break;
+                case CHROMA_CB:
+                    found = cbRepo.findAllByHashIn(batch).stream().map(BlockBase::getHash).toList();
+                    byte[][] cbArr = found.toArray(byte[][]::new);
+                    cbRepoCustom.incrementUsageForHashes(cbArr);
+                    break;
+                case CHROMA_CR:
+                    found = crRepo.findAllByHashIn(batch).stream().map(BlockBase::getHash).toList();
+                    byte[][] crArr = found.toArray(byte[][]::new);
+                    crRepoCustom.incrementUsageForHashes(crArr);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown type: " + type);
+            }
+            existing.addAll(found.stream().map(HashUtils::bytesToHex).toList());
         }
 
-        return allHashes.stream()
-                .filter(hash -> !existing.contains(hash))
-                .toList();
+        return hexHashes.stream().filter(h -> !existing.contains(h)).toList();
     }
 
-    /**
-     * Saves a batch of new blocks to the database and returns their representations<br>
-     * Each block in the request is mapped to an entity, persisted using {@link org.springframework.data.jpa.repository.JpaRepository#saveAll(Iterable)},
-     * and then converted back to a DTO response.<br>
-     * The method is typically used to store missing blocks detected via {@link #findMissingHashes(List)}<br>
-     *
-     * @param blockSaveRequestList list of blocks to save
-     * @return list of saved blocks represented as {@link BlockResponse}
-     */
     @Transactional
-    public List<BlockResponse> saveBlocksBatch(List<BlockSaveRequest> blockSaveRequestList) {
-        var entities = blockSaveRequestList.stream()
-                .map(blockMapper::toEntity)
-                .toList();
+    public List<BlockResponse> saveBlocksBatch(List<BlockSaveRequest> requests) {
+        Map<BlockType, List<BlockSaveRequest>> grouped = requests.stream()
+                .collect(Collectors.groupingBy(BlockSaveRequest::getType));
 
-        var saved = blockRepository.saveAll(entities);
-
-        return saved.stream()
-                .map(blockMapper::toResponse)
-                .toList();
+        List<BlockResponse> result = new ArrayList<>();
+        for (Map.Entry<BlockType, List<BlockSaveRequest>> entry : grouped.entrySet()) {
+            BlockType type = entry.getKey();
+            List<BlockSaveRequest> list = entry.getValue();
+            List<BlockBase> entities = list.stream().map(mapper::toEntity).toList();
+            List<BlockBase> saved = switch (type) {
+                case LUMA -> new ArrayList<>(lumaRepo.saveAll(entities.stream().map(b -> (LumaBlock) b).toList()));
+                case CHROMA_CB ->
+                        new ArrayList<>(cbRepo.saveAll(entities.stream().map(b -> (ChromaCbBlock) b).toList()));
+                case CHROMA_CR ->
+                        new ArrayList<>(crRepo.saveAll(entities.stream().map(b -> (ChromaCrBlock) b).toList()));
+            };
+            result.addAll(saved.stream().map(b -> mapper.toResponse(b, type)).toList());
+        }
+        return result;
     }
 }
