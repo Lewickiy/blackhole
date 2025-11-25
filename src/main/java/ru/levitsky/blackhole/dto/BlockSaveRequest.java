@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import ru.levitsky.blackhole.enumeration.BlockType;
 
 @Getter
 @Setter
@@ -18,4 +19,6 @@ public class BlockSaveRequest {
 
     @NotEmpty(message = "Data cannot be empty")
     private byte[] data;
+
+    private BlockType type;
 }
