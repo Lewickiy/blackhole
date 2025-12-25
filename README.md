@@ -1,288 +1,73 @@
-# Black hole
+# Blackhole Server
+**Blackhole Server** is a backend component for **block-level, deduplicated image storage**.
+It stores unique Y/U/V blocks uploaded by [clients](https://github.com/Lewickiy/blackhole-eh) and serves as the authoritative repository for reconstructing images from `.blho` manifests.
 
-## Docker container Postgresql for local launch
+> ⚠️ **Project status:** Research prototype. 
+> Server functionality is focused on storage and retrieval; 
+> compression and advanced deduplication research are handled on the client side.
+
+## Purpose
+The server handles:
+* Storage of **unique 8×8 image blocks** (Y, U, V components).
+* Indexing blocks by **SHA-256 hashes** for deduplication.
+* Receiving block uploads from [clients](https://github.com/Lewickiy/blackhole-eh).
+* Tracking metadata for `.blho` manifests.
+
+It **does not process images**, perform transforms, or generate `.blho` files — these are responsibilities of the client.
+
+## Architecture Overview
+```
+Client (.blho + missing blocks) ──► Blackhole Server ──► Block storage + metadata DB
+```
+1. **[Client](https://github.com/Lewickiy/blackhole-eh) uploads** missing blocks.
+2. Server **stores blocks** in a deduplicated format.
+3. Server **tracks metadata** to ensure reconstruction is possible.
+
+### Storage Components
+* **Luma Storage:** Stores unique Y blocks.
+* **Chroma Storage:** Stores unique U and V blocks.
+* **Metadata DB:** Tracks `.blho` files and block references.
+
+### Block Deduplication
+* Each block is hashed independently using **SHA-256**.
+* The server **rejects duplicate uploads**.
+* Guarantees **lossless reconstruction** when all referenced blocks are available.
+
+## Getting Started
+### Requirements
+* Java 21+
+* Maven
+* PostgreSQL (or compatible RDBMS)
+
+### Launch Server with Docker (PostgreSQL)
 ```bash
-docker run -d --name black-hole-db -e POSTGRES_USER=blackhole -e POSTGRES_PASSWORD=gJ3lqSs5 -e POSTGRES_DB=blackhole -p 54321:5432 postgres:17-alpine3.22
-```
-# **Blackhole: Универсальная Lossless-платформа глобальной дедупликации изображений**
-### Техническое исследование
-
----
-
-# **1. Проблематика**
-Современные системы хранения сталкиваются с фундаментальными ограничениями:
-* экспоненциальный рост количества изображений и видео
-* локальный характер дедупликации (файл-к-файлу, а не cross-image)
-* слабая эффективность классических кодеков на больших коллекциях
-* отсутствие глобального каталога структурных повторов между изображениями
-* сильное влияние JPEG-шума, приводящее к низкой повторяемости данных
-
-Критический пример:
-> **1000 туристических фото Эйфелевой башни** содержат до **80–95% повторяющейся структуры**, но традиционные JPEG/WebP/JPEG XL *никак не используют межизображенческую избыточность*.
-
----
-
-# **2. Архитектурное решение Blackhole**
-Blackhole представляет собой **двухкомпонентную систему глобальной дедупликации 8×8 блоков**, основанную на раздельной обработке:
-1. **Luma (структурная яркость)**
-2. **Chroma (цветовые отклонения)**
-
-В основе хранение находится в формате:
-```python
-class ZJGPCore:
-    def __init__(self):
-        self.luma_storage = {}     # Высокая повторяемость (80–99%)
-        self.chroma_storage = {}   # Средняя повторяемость (20–70%)
-        self.metadata_db = {}      # Клиентские .blho файлы
+docker run -d --name blackhole-db \
+  -e POSTGRES_USER=<user> \
+  -e POSTGRES_PASSWORD=<password> \
+  -e POSTGRES_DB=blackhole \
+  -p 54321:5432 \
+  postgres:17-alpine3.22
 ```
 
-Ключевая инновация:
-> **Глобальная дедупликация структурных и цветовых компонентов одновременно**, с независимым хешированием и lossless восстановлением.
-
----
-
-# **3. Архитектура системы**
-## 3.1 Серверный pipeline
-```
-              ┌────────────────────────────────────┐
-Client ───► [RGB 8×8 Block] ─► [Linear Transform] ─► [Dedup Engine]
-              └────────────────────────────────────┘
-                        │ hashes
-                        ▼
-                    Client (.blho)
+### Run Server
+```bash
+mvn spring-boot:run
 ```
 
-## 3.2 Клиентский формат .blho
+The server will:
+* Accept block uploads from [clients](https://github.com/Lewickiy/blackhole-eh).
+* Maintain deduplicated block storage.
+* Track `.blho` metadata.
 
-```json
-{
-  "format": "BLHO",
-  "version": "1.0",
-  "metadata": {
-    "width": 1920,
-    "height": 1080,
-    "block_size": 8,
-    "color_model": "LumaChroma",
-    "hash": "SHA-256"
-  },
-  "blocks": [
-    { "x": 0, "y": 0, "luma": "a1b2...", "chroma": "c7d8..." }
-  ]
-}
-```
+## Limitations
+* Server **does not perform image processing** — all transformations and `.blho` generation happen on the [client](https://github.com/Lewickiy/blackhole-eh).
+* Deduplication is based solely on SHA-256 hashes — no delta compression yet.
+* Designed for **centralized storage**; distributed deployment requires additional coordination.
 
----
+## License
+This project is proprietary and provided for research and review purposes only.
 
-# **4. Математическая основа: Lossless линейные преобразования**
+© 2025 Anatoliy Levitsky. All rights reserved.
 
-## 4.1 Luma/Chroma-преобразование
-
-Используется **integer reversible transform** (аналоги применяются в JPEG-LS, FLIF, lossless режимах JPEG XL):
-
-```python
-def rgb_to_luma_chroma(r, g, b):
-    # Integer reversible transform (lossless)
-    luma = (r + 2*g + b) >> 2         # аппроксимация BT.709, обратима без потерь
-    chroma_r = r - g
-    chroma_b = b - g
-    chroma_g = g - luma               # небольшое отклонение, но строго обратимое
-    return luma, chroma_r, chroma_g, chroma_b
-```
-
-Обратное преобразование:
-
-```python
-def luma_chroma_to_rgb(l, cr, cg, cb):
-    g = l + cg
-    r = cr + g
-    b = cb + g
-    return r, g, b
-```
-
-**Гарантия:**
-преобразование *строго обратимое, без дробных чисел* → 100% lossless
-
----
-
-# **5. Дедупликация: методология и хеширование**
-
-## 5.1 Хеширование блоков
-
-Каждый компонент блока хешируется отдельно:
-
-* **Luma hash:** SHA-256
-* **Chroma hash:** SHA-256
-* дополнительная проверка collision-safe: CRC32 + byte-wise compare
-
-## 5.2 Как считается дедупликация
-
-Для каждого входного набора данных:
-```
-duplicateRate = (1 - uniqueBlocks / totalBlocks)
-```
-
-Измерения производятся (пока не проведено) на:
-* COCO + OpenImages
-* OpenStreetMap satellite tiles
-* UI datasets (Figma, design systems)
-* DICOM CT/MRI (100k+)
-* 24h видеонаблюдения с 7 разных камер
-* 2000 туристических JPEG-фото
-
----
-
-# **6. Ограничения системы**
-
-1. **JPEG-артефакты уменьшают совпадения**
-   → требуется предварительная нормализация блоков.
-
-2. **Подвижные сцены дают низкую дедупликацию**
-   (например, концерт, вода, дым).
-
-3. **Система требует централизованного хранилища блоков**, не подходит для:
-
-   * offline-режима
-   * распределённого хранения без синхронизации
-
-4. **Видео потоки требуют оптимизации по пропускной способности**
-   (в roadmap заложено H2H Transport — “hash-to-hash”).
-
----
-
-# **7. Эффективность дедупликации**
-
-| Тип контента                       | Luma dedup | Chroma dedup | Итог   |
-| ---------------------------------- | ---------- | ------------ | ------ |
-| Медицинские снимки (DICOM, CT/MRI) | 97–99%     | 85–95%       | 94–98% |
-| UI/дизайн                          | 92–96%     | 55–75%       | 80–90% |
-| Видеонаблюдение (статичные камеры) | 98.5–99.9% | 70–92%       | 95–99% |
-| Спутниковые снимки                 | 85–92%     | 45–65%       | 70–85% |
-| Туристические JPEG                 | 65–82%     | 15–40%       | 40–65% |
-| Raw/PNG фото                       | 75–90%     | 40–70%       | 55–82% |
-
----
-
-# **8. Экономия хранилища**
-
-Для изображения **1920×1080**:
-
-* JPEG: **500 KB – 2 MB**
-* BLHO metadata: **50–120 KB**
-* Серверное хранилище: **доли килобайта / блок**
-
-**Фактическая экономия: 4–15×**
-(в зависимости от контента).
-
----
-
-# **9. Преимущества Blackhole**
-
-## Технические
-* 100% lossless
-* глобальная межизображенческая дедупликация
-* раздельное хеширование luma/chroma
-* instant-preview: загрузка только luma
-* прогрессивная реконструкция
-* эффективен на больших коллекциях, где традиционные кодеки уже не помогают
-
-## Бизнес
-* сокращение затрат на storage 70–90%
-* уменьшение сетевого трафика
-* один универсальный формат
-* высокий эффект масштаба (network effect)
-
----
-
-# **10. Применение**
-
-### Медицина (DICOM)
-
-* архивы CT/MRI/PET
-* lossless критичен
-* экономия 10–20×
-
-### UI/UX дизайн
-
-* дизайн-системы
-* повторяющиеся компоненты
-* мгновенные превью
-
-### Видеонаблюдение
-
-* фиксированные сцены
-* большие архивы
-
-### Спутниковые снимки
-
-* tile-based дедупликация
-* многолетние тайм-серии
-
----
-
-# **11. Сравнение с существующими решениями**
-| Система       | Дедупликация   | Lossless | Cross-Image | Уровень          |
-|---------------| -------------- | -------- | ----------- | ---------------- |
-| **BLHO**      | Блоковая (8×8) | ✔        | ✔           | Хранение+кодек   |
-| JPEG/JPEG XL  | Нет            | Частично | ❌           | Кодек            |
-| Google Photos | Файловая       | Нет      | ❌           | Облако           |
-| ZFS/Btrfs     | Блочная ФС     | ✔        | ❌           | Файловая система |
----
-
-# **12. Технические инновации**
-### 1. Раздельная дедупликация структурных и цветовых данных
-Уникальная особенность платформы
-
-### 2. Cross-image block sharing
-Повторы между разными изображениями - основная точка выигрыша
-
-### 3. Adaptive Transform Normalization
-Для JPEG блоков применяется нормализация, нивелирующая шум
-
-### 4. Progressive Reconstruction
-* luma-only preview
-* chroma later
----
-
-# **13. Roadmap разработки**
-### Фаза 1 — MVP (0–6 месяцев)
-* базовый сервер
-* блоковый каталог
-* формат .blho
-* JPEG/PNG import
-* базовый клиент
-* веб-интерфейс просмотра метрик
-
-### Фаза 2 — Расширение (6–12 месяцев)
-* DICOM
-* API
-* мобильные клиенты
-* оптимизация сети (H2H Transport)
-
-### Фаза 3 — Масштабирование (12–18 месяцев)
-* дедупликация видео
-* распределённые узлы
-* AI-assisted dedup
-* enterprise-функциональность
----
-
-# **14. Конкурентные преимущества**
-* межизображенческая дедупликация (в отличие от всех кодеков)
-* lossless
-* высокая масштабируемость
-* стабильная эффективность на больших коллекциях
-* машинно-доказуемая обратимость преобразований
----
-
-# **15. Заключение**
-
-Blackhole - новая архитектура хранения изображений, сочетающая:
-* **lossless качество**
-* **линейно-обратимые преобразования**
-* **глобальную дедупликацию блоков**
-* **мгновенную реконструкцию**
-* **существенное снижение стоимости хранения**
-
-Система устраняет фундаментальный недостаток всех современных кодеков:
-невозможность использовать *межизображенческую* структурную избыточность
-
-Blackhole - это шаг от “формата файла” к **системе хранения нового поколения**
+Any use, reproduction, modification, or distribution of this software
+without explicit written permission from the author is prohibited.
